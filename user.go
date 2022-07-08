@@ -8,4 +8,5 @@ type UserDTO interface {
 	GetInviterId() string
 	GetInviterName() string
 	GetRole() string
+	GetDealerId() string
 }

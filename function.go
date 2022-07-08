@@ -13,6 +13,7 @@ type Function struct {
 
 type MethodFunction map[string]Function
 
-func (mf MethodFunction) GetMethod(name string) interface{} {
-	return mf[name]
+func (mf MethodFunction) GetMethod(name string) (interface{}, bool) {
+	f, ok := mf[name]
+	return f, ok
 }

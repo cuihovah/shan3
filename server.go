@@ -143,8 +143,9 @@ func openProcess(
 func run(s Server) func(http.ResponseWriter, *http.Request, httprouter.Params) {
 	return func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		method := GetMethodName(r)
-		fn, ok := s.GetFunction().GetMethod(method).(Function)
+		f, ok := s.GetFunction().GetMethod(method)
 		if ok == true {
+			fn := f.(Function)
 			var ret interface{}
 			var err error
 			if fn.Authorization == false {

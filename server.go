@@ -20,11 +20,9 @@ type Server interface{
 	ParseToken(http.ResponseWriter, *http.Request) (UserDTO, error)
 }
 
-func transaction(
-	s Server,
-	ff Function,
-	w http.ResponseWriter,
-	r *http.Request) (interface{}, error) {
+type Context func(s Server, ff Function, w http.ResponseWriter, r *http.Request) (interface{}, error)
+
+func transaction(s Server, ff Function, w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	fn := ff.Fn
 	token, err := s.ParseToken(w, r)
 	if err != nil {
@@ -76,11 +74,7 @@ func transaction(
 	return ret, err
 }
 
-func process(
-	s Server,
-	ff Function,
-	w http.ResponseWriter,
-	r *http.Request) (interface{}, error) {
+func process( s Server, ff Function, w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	fn := ff.Fn
 	token, err := s.ParseToken(w, r)
 	if err != nil {
@@ -123,11 +117,7 @@ func process(
 	}
 }
 
-func openProcess(
-	_ Server,
-	ff Function,
-	w http.ResponseWriter,
-	r *http.Request) (interface{}, error) {
+func openProcess(_ Server, ff Function, w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	fn := ff.Fn
 	var token UserDTO
 	query := QueryParse(r)
@@ -140,32 +130,40 @@ func openProcess(
 	return ret, err
 }
 
+func function(fn Function) Context {
+	if fn.Authorization == false {
+		return openProcess
+	}
+	if fn.Transcation == true {
+		return transaction
+	}
+	return process
+}
+
+func response(w http.ResponseWriter, ContentType string, err error, data interface{}) {
+	if err != nil {
+		ResponseHandleError(w, err.Error(), data)
+		return
+	}
+	if ContentType == "" {
+		ResponseWapperSucc(w, data)
+		return
+	}
+	w.Header().Add("Content-Type", ContentType)
+	w.Write(data.([]byte))
+}
+
 func run(s Server) func(http.ResponseWriter, *http.Request, httprouter.Params) {
 	return func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		method := GetMethodName(r)
 		f, ok := s.GetFunction().GetMethod(method)
-		if ok == true {
-			fn := f.(Function)
-			var ret interface{}
-			var err error
-			if fn.Authorization == false {
-				ret, err = openProcess(s, fn, w, r)
-			} else if fn.Transcation == true {
-				ret, err = transaction(s, fn, w, r)
-			} else {
-				ret, err = process(s, fn, w, r)
-			}
-			if err != nil {
-				ResponseHandleError(w, err.Error(), ret)
-			} else if fn.ContentType == "" {
-				ResponseWapperSucc(w, ret)
-			} else {
-				w.Header().Add("Content-Type", fn.ContentType)
-				w.Write(ret.([]byte))
-			}
+		if ok == false {
+			w.WriteHeader(404)
 			return
 		}
-		w.WriteHeader(404)
+		fn := f.(Function)
+		ret, err := function(fn)(s, fn, w, r)
+		response(w, fn.ContentType, err, ret)
 	}
 }
 

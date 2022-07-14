@@ -3,6 +3,8 @@ package shan3
 import (
 	"context"
 	"io/ioutil"
+
+	//"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -24,9 +26,11 @@ func QueryParse(r *http.Request) map[string]string {
 }
 
 func BodyBuffer(r *http.Request) ([]byte, error) {
-	defer r.Body.Close()
-	body, err := ioutil.ReadAll(r.Body)
-	return body, err
+	if r.Header.Get("Content-Type") == "application/json" {
+		defer r.Body.Close()
+		return ioutil.ReadAll(r.Body)
+	}
+	return make([]byte, 0), nil
 }
 
 func GetMethodName(r *http.Request) string {
